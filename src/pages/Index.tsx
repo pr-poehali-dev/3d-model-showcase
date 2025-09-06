@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
+import { useAuth } from '@/context/AuthContext';
 
 interface Model3D {
   id: number;
@@ -70,61 +70,56 @@ const mockModels: Model3D[] = [
 ];
 
 export default function Index() {
+  const { user, createOrder } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<Model3D[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('Все');
-  const [models, setModels] = useState<Model3D[]>(mockModels);
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [editingModel, setEditingModel] = useState<Model3D | null>(null);
+  const [showCart, setShowCart] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
   const [viewingModel, setViewingModel] = useState<Model3D | null>(null);
-  const [newModel, setNewModel] = useState<Partial<Model3D>>({ 
-    name: '', 
-    price: 0, 
-    image: '', 
-    tags: [], 
-    category: 'Abstract', 
-    id: 0 
+  
+  const [customerData, setCustomerData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: '',
+    address: ''
   });
 
   const categories = ['Все', 'Abstract', 'Characters', 'Decorative'];
 
   const filteredModels = useMemo(() => {
-    return models.filter(model => {
+    return mockModels.filter(model => {
       const matchesSearch = model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            model.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = selectedCategory === 'Все' || model.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory, models]);
+  }, [searchTerm, selectedCategory]);
 
   const addToCart = (model: Model3D) => {
     setCart(prev => [...prev, model]);
   };
 
   const removeFromCart = (modelId: number) => {
-    setCart(prev => prev.filter(item => item.id !== modelId));
+    setCart(prev => prev.filter((item, index) => 
+      index !== prev.findIndex(cartItem => cartItem.id === modelId)
+    ));
   };
 
-  const updateModel = (updatedModel: Model3D) => {
-    setModels(prev => prev.map(m => m.id === updatedModel.id ? updatedModel : m));
-    setEditingModel(null);
-  };
-
-  const deleteModel = (modelId: number) => {
-    setModels(prev => prev.filter(m => m.id !== modelId));
-  };
-
-  const addNewModel = () => {
-    if (newModel.name && newModel.price && newModel.image && newModel.category) {
-      const model: Model3D = {
-        ...newModel as Model3D,
-        id: Date.now(),
-        tags: typeof newModel.tags === 'string' 
-          ? (newModel.tags as string).split(',').map(t => t.trim()).filter(t => t.length > 0)
-          : newModel.tags || []
-      };
-      setModels(prev => [...prev, model]);
-      setNewModel({ name: '', price: 0, image: '', tags: [], category: 'Abstract', id: 0 });
+  const handleCheckout = () => {
+    if (!user) {
+      alert('Необходимо войти в аккаунт для оформления заказа');
+      return;
+    }
+    
+    if (customerData.name && customerData.email && customerData.phone && customerData.address) {
+      createOrder(cart, customerData);
+      setCart([]);
+      setShowCheckout(false);
+      setShowCart(false);
+      alert('Заказ успешно оформлен! Вы можете отслеживать его в личном кабинете.');
+    } else {
+      alert('Пожалуйста, заполните все поля');
     }
   };
 
@@ -151,11 +146,6 @@ export default function Index() {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 3D Store
               </h1>
-              {isAdminMode && (
-                <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-400/20">
-                  Админ режим
-                </Badge>
-              )}
             </div>
 
             <nav className="flex items-center gap-6">
@@ -170,112 +160,154 @@ export default function Index() {
                 <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
 
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="glass border-white/20 hover:border-primary/50 relative"
-                onClick={() => console.log('Открыть корзину')}
-              >
-                <Icon name="ShoppingCart" size={16} />
-                {cartCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-primary text-primary-foreground">
-                    {cartCount}
-                  </Badge>
-                )}
-              </Button>
-
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className={`glass border-white/20 hover:border-primary/50 ${isAdminMode ? 'bg-primary/20 border-primary/50' : ''}`}
-                onClick={() => setIsAdminMode(!isAdminMode)}
-              >
-                <Icon name={isAdminMode ? "Shield" : "User"} size={16} />
-              </Button>
-
-              {isAdminMode && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="gradient-primary text-white border-0">
-                      <Icon name="Plus" size={16} className="mr-1" />
-                      Добавить
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="glass border-white/20 max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle className="text-white">Добавить новую модель</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="name" className="text-white">Название</Label>
-                          <Input
-                            id="name"
-                            value={newModel.name || ''}
-                            onChange={(e) => setNewModel(prev => ({...prev, name: e.target.value}))}
-                            className="glass border-white/20 text-white"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="price" className="text-white">Цена ($)</Label>
-                          <Input
-                            id="price"
-                            type="number"
-                            step="0.01"
-                            value={newModel.price || ''}
-                            onChange={(e) => setNewModel(prev => ({...prev, price: parseFloat(e.target.value) || 0}))}
-                            className="glass border-white/20 text-white"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="image" className="text-white">URL изображения</Label>
-                        <Input
-                          id="image"
-                          value={newModel.image || ''}
-                          onChange={(e) => setNewModel(prev => ({...prev, image: e.target.value}))}
-                          className="glass border-white/20 text-white"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="category" className="text-white">Категория</Label>
-                          <Select
-                            value={newModel.category || 'Abstract'}
-                            onValueChange={(value) => setNewModel(prev => ({...prev, category: value}))}
+              <Dialog open={showCart} onOpenChange={setShowCart}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="glass border-white/20 hover:border-primary/50 relative"
+                  >
+                    <Icon name="ShoppingCart" size={16} />
+                    {cartCount > 0 && (
+                      <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-primary text-primary-foreground">
+                        {cartCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="glass border-white/20 max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Корзина ({cartCount})</DialogTitle>
+                  </DialogHeader>
+                  <div className="max-h-96 overflow-y-auto">
+                    {cart.length > 0 ? (
+                      <div className="space-y-4">
+                        {cart.map((item, index) => (
+                          <div key={`${item.id}-${index}`} className="flex items-center gap-4 p-3 glass rounded-lg border-white/10">
+                            <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
+                            <div className="flex-1">
+                              <h4 className="text-white font-medium">{item.name}</h4>
+                              <p className="text-muted-foreground">${item.price}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removeFromCart(item.id)}
+                              className="glass border-white/20 hover:border-red-500/50 text-red-400"
+                            >
+                              <Icon name="Trash2" size={14} />
+                            </Button>
+                          </div>
+                        ))}
+                        <div className="border-t border-white/10 pt-4">
+                          <div className="flex justify-between items-center text-white text-lg font-bold mb-4">
+                            <span>Итого: ${cartTotal.toFixed(2)}</span>
+                          </div>
+                          <Button
+                            onClick={() => setShowCheckout(true)}
+                            className="w-full gradient-primary text-white border-0"
+                            disabled={!user}
                           >
-                            <SelectTrigger className="glass border-white/20 text-white">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="glass border-white/20">
-                              <SelectItem value="Abstract">Abstract</SelectItem>
-                              <SelectItem value="Characters">Characters</SelectItem>
-                              <SelectItem value="Decorative">Decorative</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="tags" className="text-white">Теги (через запятую)</Label>
-                          <Input
-                            id="tags"
-                            value={Array.isArray(newModel.tags) ? newModel.tags.join(', ') : newModel.tags || ''}
-                            onChange={(e) => setNewModel(prev => ({...prev, tags: e.target.value}))}
-                            className="glass border-white/20 text-white"
-                            placeholder="например: modern, chrome, abstract"
-                          />
+                            {user ? 'Оформить заказ' : 'Войдите для заказа'}
+                          </Button>
+                          {!user && (
+                            <p className="text-sm text-muted-foreground text-center mt-2">
+                              <Link to="/login" className="text-primary hover:underline">Войти</Link> или{' '}
+                              <Link to="/register" className="text-primary hover:underline">зарегистрироваться</Link>
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <Button onClick={addNewModel} className="gradient-primary text-white border-0">
-                        Добавить модель
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Icon name="ShoppingCart" size={48} className="mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-muted-foreground">Корзина пуста</p>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {user ? (
+                <Link to={user.role === 'admin' ? '/admin' : '/profile'}>
+                  <Button variant="outline" size="sm" className="glass border-white/20 hover:border-primary/50">
+                    <Icon name={user.role === 'admin' ? 'Shield' : 'User'} size={16} />
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/login">
+                  <Button variant="outline" size="sm" className="glass border-white/20 hover:border-primary/50">
+                    <Icon name="User" size={16} />
+                  </Button>
+                </Link>
               )}
             </nav>
           </div>
         </div>
       </header>
+
+      {/* Checkout Dialog */}
+      <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
+        <DialogContent className="glass border-white/20 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Оформление заказа</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="customer-name" className="text-white">Имя</Label>
+              <Input
+                id="customer-name"
+                value={customerData.name}
+                onChange={(e) => setCustomerData(prev => ({...prev, name: e.target.value}))}
+                className="glass border-white/20 text-white"
+                placeholder="Ваше имя"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer-email" className="text-white">Email</Label>
+              <Input
+                id="customer-email"
+                type="email"
+                value={customerData.email}
+                onChange={(e) => setCustomerData(prev => ({...prev, email: e.target.value}))}
+                className="glass border-white/20 text-white"
+                placeholder="your@email.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer-phone" className="text-white">Телефон</Label>
+              <Input
+                id="customer-phone"
+                value={customerData.phone}
+                onChange={(e) => setCustomerData(prev => ({...prev, phone: e.target.value}))}
+                className="glass border-white/20 text-white"
+                placeholder="+7 999 123 45 67"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer-address" className="text-white">Адрес доставки</Label>
+              <Input
+                id="customer-address"
+                value={customerData.address}
+                onChange={(e) => setCustomerData(prev => ({...prev, address: e.target.value}))}
+                className="glass border-white/20 text-white"
+                placeholder="Город, улица, дом"
+              />
+            </div>
+            <div className="border-t border-white/10 pt-4">
+              <div className="text-white text-lg font-bold mb-4">
+                Итого: ${cartTotal.toFixed(2)}
+              </div>
+              <Button
+                onClick={handleCheckout}
+                className="w-full gradient-primary text-white border-0"
+              >
+                Подтвердить заказ
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Hero Section */}
       <section className="py-20 text-center relative">
@@ -328,8 +360,7 @@ export default function Index() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-2">
-                    {/* View Model Dialog */}
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300">
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button size="sm" className="glass border-white/20 hover:border-primary/50">
@@ -388,97 +419,6 @@ export default function Index() {
                         </div>
                       </DialogContent>
                     </Dialog>
-
-                    {/* Admin Edit Button */}
-                    {isAdminMode && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button size="sm" className="glass border-white/20 hover:border-yellow-500/50 bg-yellow-500/20">
-                            <Icon name="Edit" size={14} />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="glass border-white/20 max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle className="text-white">Редактировать модель</DialogTitle>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="edit-name" className="text-white">Название</Label>
-                                <Input
-                                  id="edit-name"
-                                  defaultValue={model.name}
-                                  className="glass border-white/20 text-white"
-                                  onChange={(e) => setEditingModel({...model, name: e.target.value})}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-price" className="text-white">Цена ($)</Label>
-                                <Input
-                                  id="edit-price"
-                                  type="number"
-                                  step="0.01"
-                                  defaultValue={model.price}
-                                  className="glass border-white/20 text-white"
-                                  onChange={(e) => setEditingModel({...model, price: parseFloat(e.target.value) || 0})}
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <Label htmlFor="edit-image" className="text-white">URL изображения</Label>
-                              <Input
-                                id="edit-image"
-                                defaultValue={model.image}
-                                className="glass border-white/20 text-white"
-                                onChange={(e) => setEditingModel({...model, image: e.target.value})}
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="edit-category" className="text-white">Категория</Label>
-                                <Select
-                                  defaultValue={model.category}
-                                  onValueChange={(value) => setEditingModel({...model, category: value})}
-                                >
-                                  <SelectTrigger className="glass border-white/20 text-white">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent className="glass border-white/20">
-                                    <SelectItem value="Abstract">Abstract</SelectItem>
-                                    <SelectItem value="Characters">Characters</SelectItem>
-                                    <SelectItem value="Decorative">Decorative</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-tags" className="text-white">Теги (через запятую)</Label>
-                                <Input
-                                  id="edit-tags"
-                                  defaultValue={model.tags.join(', ')}
-                                  className="glass border-white/20 text-white"
-                                  onChange={(e) => setEditingModel({...model, tags: e.target.value.split(',').map(t => t.trim())})}
-                                />
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button 
-                                onClick={() => updateModel(editingModel || model)} 
-                                className="gradient-primary text-white border-0 flex-1"
-                              >
-                                Сохранить
-                              </Button>
-                              <Button 
-                                onClick={() => deleteModel(model.id)} 
-                                variant="destructive"
-                                className="border-0"
-                              >
-                                Удалить
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    )}
                   </div>
                 </div>
 
@@ -534,8 +474,12 @@ export default function Index() {
                 <p className="text-sm font-medium">{cartCount} товаров</p>
                 <p className="text-lg font-bold text-primary">${cartTotal.toFixed(2)}</p>
               </div>
-              <Button size="sm" className="gradient-primary text-white border-0 ml-2">
-                Оформить
+              <Button 
+                size="sm" 
+                className="gradient-primary text-white border-0 ml-2"
+                onClick={() => setShowCart(true)}
+              >
+                Открыть
               </Button>
             </div>
           </Card>
