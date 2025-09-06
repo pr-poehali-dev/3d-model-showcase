@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -139,10 +139,12 @@ export default function Admin() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" className="glass border-white/20 hover:border-primary/50">
-                <Icon name="Home" size={16} className="mr-1" />
-                Главная
-              </Button>
+              <Link to="/">
+                <Button variant="outline" size="sm" className="glass border-white/20 hover:border-primary/50">
+                  <Icon name="Home" size={16} className="mr-1" />
+                  Каталог
+                </Button>
+              </Link>
               <Button 
                 variant="outline" 
                 size="sm" 

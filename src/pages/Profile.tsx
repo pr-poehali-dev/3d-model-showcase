@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -64,10 +64,12 @@ export default function Profile() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" className="glass border-white/20 hover:border-primary/50">
-                <Icon name="Home" size={16} className="mr-1" />
-                Главная
-              </Button>
+              <Link to="/">
+                <Button variant="outline" size="sm" className="glass border-white/20 hover:border-primary/50">
+                  <Icon name="Home" size={16} className="mr-1" />
+                  Каталог
+                </Button>
+              </Link>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -162,10 +164,12 @@ export default function Profile() {
               <p className="text-muted-foreground mb-6">
                 Перейдите в каталог и выберите понравившиеся модели
               </p>
-              <Button className="gradient-primary text-white border-0">
-                <Icon name="ArrowLeft" size={16} className="mr-2" />
-                Перейти в каталог
-              </Button>
+              <Link to="/">
+                <Button className="gradient-primary text-white border-0">
+                  <Icon name="ArrowLeft" size={16} className="mr-2" />
+                  Перейти в каталог
+                </Button>
+              </Link>
             </div>
           )}
         </Card>

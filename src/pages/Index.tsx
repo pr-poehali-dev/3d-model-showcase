@@ -79,11 +79,22 @@ export default function Index() {
   const [viewingModel, setViewingModel] = useState<Model3D | null>(null);
   
   const [customerData, setCustomerData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
+    name: '',
+    email: '',
     phone: '',
     address: ''
   });
+
+  // Update customer data when user changes
+  React.useEffect(() => {
+    if (user) {
+      setCustomerData(prev => ({
+        ...prev,
+        name: user.name,
+        email: user.email
+      }));
+    }
+  }, [user]);
 
   const categories = ['Все', 'Abstract', 'Characters', 'Decorative'];
 
@@ -108,7 +119,6 @@ export default function Index() {
 
   const handleCheckout = () => {
     if (!user) {
-      alert('Необходимо войти в аккаунт для оформления заказа');
       return;
     }
     
@@ -121,6 +131,14 @@ export default function Index() {
     } else {
       alert('Пожалуйста, заполните все поля');
     }
+  };
+
+  const handleCartCheckout = () => {
+    if (!user) {
+      alert('Необходимо войти в аккаунт для оформления заказа');
+      return;
+    }
+    setShowCheckout(true);
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
@@ -204,9 +222,8 @@ export default function Index() {
                             <span>Итого: ${cartTotal.toFixed(2)}</span>
                           </div>
                           <Button
-                            onClick={() => setShowCheckout(true)}
+                            onClick={handleCartCheckout}
                             className="w-full gradient-primary text-white border-0"
-                            disabled={!user}
                           >
                             {user ? 'Оформить заказ' : 'Войдите для заказа'}
                           </Button>
